@@ -1,0 +1,9 @@
+__pycache__
+.vscode
+.idea
+data
+model/backup
+model/*.pkl
+
+cagen/out/
+cagen/data/
