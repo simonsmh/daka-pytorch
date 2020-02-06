@@ -1,10 +1,9 @@
 __pycache__
-.vscode
 .idea
+.vscode
+cagen/data/
+cagen/out/
 data
 model/backup
 model/*.pkl
 !model/best.pkl
-
-cagen/out/
-cagen/data/
