@@ -4,6 +4,7 @@ __pycache__
 data
 model/backup
 model/*.pkl
+!model/best.pkl
 
 cagen/out/
 cagen/data/

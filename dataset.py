@@ -8,18 +8,20 @@ from torch.utils.data import DataLoader, Dataset
 
 from utils.utils import StrtoLabel
 
+transform = transforms.Compose(
+    [
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+    ]
+)
+
 
 class selfdataset(Dataset):
     def __init__(self, folder):
         self.train_image_file_paths = [
             os.path.join(folder, image_file) for image_file in os.listdir(folder)
         ]
-        self.transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            ]
-        )
+        self.transform = transform
 
     def __len__(self):
         return len(self.train_image_file_paths)
