@@ -9,9 +9,9 @@ from utils.utils import LabeltoStr, StrtoLabel, device, logger
 
 
 def main():
-    model = ResNet(ResidualBlock).to(device)
+    model = ResNet(ResidualBlock)
     model.eval()
-    model.load_state_dict(torch.load("model/best.pkl"))
+    model.load_state_dict(torch.load("model/best.pkl", map_location=device))
     logger.info("Test: loaded model")
 
     test_dataloader = get_test_data_loader()
@@ -23,8 +23,8 @@ def main():
         predict_label1, predict_label2 = model(images)
         predict_label = LabeltoStr(
             [
-                np.argmax(predict_label1.to("cpu").data.numpy()[0]),
-                np.argmax(predict_label2.to("cpu").data.numpy()[0]),
+                np.argmax(predict_label1.data.numpy()[0]),
+                np.argmax(predict_label2.data.numpy()[0]),
             ]
         )
         true_label = LabeltoStr(labels.data.numpy()[0])

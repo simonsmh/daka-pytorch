@@ -3,13 +3,13 @@ import torch
 
 from dataset import get_predict_data_loader
 from model import ResidualBlock, ResNet
-from utils.utils import LabeltoStr, StrtoLabel, logger
+from utils.utils import LabeltoStr, StrtoLabel, device, logger
 
 
 def main():
-    model = ResNet(ResidualBlock).to("cpu")
+    model = ResNet(ResidualBlock)
     model.eval()
-    model.load_state_dict(torch.load("model/best.pkl"))
+    model.load_state_dict(torch.load("model/best.pkl", map_location=device))
     logger.info("Valid: loaded model")
 
     predict_dataloader = get_predict_data_loader()

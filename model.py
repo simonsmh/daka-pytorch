@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import os
 
-from utils.utils import logger
+from utils.utils import device, logger
 
 # CNN Model (2 conv layer) Acc 49.6%
 # dee1024/pytorch-captcha-recognition
@@ -132,5 +132,5 @@ class ResNet(nn.Module):
         fileList = os.listdir("./model/")
         if "resNet_last.pkl" in fileList:
             name = "./model/resNet_last.pkl"
-            self.load_state_dict(torch.load(name, map_location="cuda:0" if torch.cuda.is_available() else "cpu"))
+            self.load_state_dict(torch.load(name, map_location=device))
             logger.info("ResNet Model: The latest model has been loaded.")

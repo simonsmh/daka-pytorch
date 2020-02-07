@@ -10,7 +10,7 @@ from PIL import Image
 
 from dataset import transform
 from model import ResidualBlock, ResNet
-from utils.utils import LabeltoStr, logger
+from utils.utils import LabeltoStr, device, logger
 
 
 DK_URL = "https://dk.shmtu.edu.cn/"
@@ -20,7 +20,7 @@ CHECKIN_URL = DK_URL + "checkin"
 
 model = ResNet(ResidualBlock).to("cpu")
 model.eval()
-model.load_state_dict(torch.load("model/best.pkl"))
+model.load_state_dict(torch.load("model/best.pkl", map_location=device))
 
 
 def detect(Img):
@@ -67,6 +67,7 @@ def checkin():
         return False
     soup = BeautifulSoup(r.content, "lxml")
     check = str(soup.find("div", attrs={"class": "form-group"}))
+    print(check)
     flag = False
     if "Health report have not been submitted today" in check:
         flag = False
