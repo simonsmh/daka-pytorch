@@ -1,7 +1,8 @@
 Daka
 ===
 
-![](https://img.shields.io/badge/PyTorch-1.4%2B-orange)
+[![](https://img.shields.io/badge/PyTorch-1.4%2B-orange)](https://github.com/pytorch/pytorch)
+[![Require: python-telegram-bot >= 12.3.0](https://img.shields.io/badge/python--telegram--bot-%3E%3D%2012.3.0-blue)](https://github.com/python-telegram-bot/python-telegram-bot)
 
 Experimental project based on PyTorch + ResNet18 Model.
 

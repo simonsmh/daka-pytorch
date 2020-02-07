@@ -7,3 +7,5 @@ data
 model/backup
 model/*.pkl
 !model/best.pkl
+*.json
+!sample.json
