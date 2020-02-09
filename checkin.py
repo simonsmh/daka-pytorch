@@ -57,6 +57,8 @@ def login():
 def checkin():
     data = {
         "xgh": USERNAME,
+        "lon": "",
+        "lat": "",
         "region": 1,
         "rylx": 4,
         "status": 0,

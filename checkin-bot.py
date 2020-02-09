@@ -61,6 +61,8 @@ def login(s, username, password):
 def checkin(s, username):
     data = {
         "xgh": username,
+        "lon": "",
+        "lat": "",
         "region": 1,
         "rylx": 4,
         "status": 0,
@@ -115,45 +117,19 @@ def checkin_queue(context):
 def start(update, context):
     message = update.message
     chat = message.forward_from_chat if message.forward_from_chat else message.chat
+    context.job_queue.run_once(
+        checkin_queue,
+        1,
+        context={
+            "username": config.get("USERNAME"),
+            "password": config.get("PASSWORD"),
+        },
+    )
     jobs = [t.name for t in context.job_queue.jobs()]
     message.reply_markdown(
-        f"Usage:\n/add <username> <password>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
+        f"CHAT ID: `{chat.id}`\nSending to {config.get('CHAT')}\nCurrent Jobs: {jobs}"
     )
     logger.info(f"Start command: Current Jobs: {jobs}")
-
-
-@run_async
-def add(update, context):
-    message = update.message
-    data = message.text.split(" ")
-    username, password = data[1], data[2]
-    for job in context.job_queue.get_jobs_by_name(username):
-        job.schedule_removal()
-    updater.job_queue.run_daily(
-        checkin_queue,
-        datetime.time(1, 0, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
-        context={"username": username, "password": password},
-        name=username,
-    )
-    jobs = [t.name for t in context.job_queue.jobs()]
-    message.reply_text(
-        f"Added successfully!\nusername: {username}\npassword: {password}\nCurrent Jobs: {jobs}"
-    )
-    logger.info(f"Added Jobs: {username}, Current Jobs: {jobs}")
-
-
-@run_async
-def delete(update, context):
-    message = update.message
-    data = message.text.split(" ")
-    username = data[1]
-    for job in context.job_queue.get_jobs_by_name(username):
-        job.schedule_removal()
-    jobs = [t.name for t in context.job_queue.jobs()]
-    message.reply_text(
-        f"Deleted successfully!\nusername: {username}\nCurrent Jobs: {jobs}"
-    )
-    logger.info(f"Deleted Jobs: {username}, Current Jobs: {jobs}")
 
 
 @run_async
@@ -185,9 +161,16 @@ if __name__ == "__main__":
     TOKEN, CHAT = config.get("TOKEN"), config.get("CHAT")
     logger.info(f"Bot: Starting & Sending to {CHAT}")
     updater = Updater(TOKEN, use_context=True)
+    updater.job_queue.run_daily(
+        checkin_queue,
+        datetime.time(0, 5, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
+        context={
+            "username": config.get("USERNAME"),
+            "password": config.get("PASSWORD"),
+        },
+        name=config.get("USERNAME"),
+    )
     updater.dispatcher.add_handler(CommandHandler("start", start))
-    updater.dispatcher.add_handler(CommandHandler("add", add))
-    updater.dispatcher.add_handler(CommandHandler("delete", delete))
     updater.dispatcher.add_error_handler(error)
     updater.start_polling()
     updater.idle()
