@@ -14,6 +14,7 @@ from utils.utils import LabeltoStr, device, logger
 DK_URL = "https://dk.shmtu.edu.cn/"
 CAPTCHA_URL = "https://cas.shmtu.edu.cn/cas/captcha"
 CHECKIN_URL = DK_URL + "checkin"
+ARRSH_URL = DK_URL + "arrsh"
 
 model = ResNet(ResidualBlock)
 model.eval()
@@ -64,6 +65,16 @@ def checkin():
         "status": 0,
     }
     post = s.post(CHECKIN_URL, data=data)
+    data = {
+        "xgh": USERNAME,
+        "alwaysinsh": 1,
+        "fromaddr": "",
+        "fromtime": "",
+        "totime": "",
+        "jtgj": "",
+        "status": 0
+    }
+    post = s.post(ARRSH_URL, data=data)
     logger.info("Checkin: Checkin...")
     soup = BeautifulSoup(post.content, "lxml")
     return (
