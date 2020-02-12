@@ -9,3 +9,4 @@ model/*.pkl
 !model/best.pkl
 *.json
 !sample.json
+Pipfile*

@@ -160,7 +160,7 @@ if __name__ == "__main__":
         config = load_json()
     TOKEN, CHAT = config.get("TOKEN"), config.get("CHAT")
     logger.info(f"Bot: Starting & Sending to {CHAT}")
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN, use_context=True, request_kwargs=config.get("REQUEST_KWARGS"))
     updater.job_queue.run_daily(
         checkin_queue,
         datetime.time(0, 5, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),

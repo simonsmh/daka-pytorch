@@ -1,5 +1,8 @@
 {
     "TOKEN": "",
+    "REQUEST_KWARGS": {
+        "proxy_url": "socks5://127.0.0.1:1080/"
+    },
     "CHAT": -1001234567890,
     "USERNAME": "201712345678",
     "PASSWORD": ""
