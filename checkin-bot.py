@@ -59,26 +59,27 @@ def login(s, username, password):
     return True if post.url == DK_URL else False
 
 
-def checkin(s, username):
+def checkin(s, username, region):
     data = {
         "xgh": username,
         "lon": "",
         "lat": "",
-        "region": 1,
+        "region": region,
         "rylx": 4,
         "status": 0,
     }
     post = s.post(CHECKIN_URL, data=data)
-    data = {
-        "xgh": username,
-        "alwaysinsh": 1,
-        "fromaddr": "",
-        "fromtime": "",
-        "totime": "",
-        "jtgj": "",
-        "status": 0
-    }
-    post = s.post(ARRSH_URL, data=data)
+    if region == 1:
+        data = {
+            "xgh": username,
+            "alwaysinsh": 1,
+            "fromaddr": "",
+            "fromtime": "",
+            "totime": "",
+            "jtgj": "",
+            "status": 0,
+        }
+        post = s.post(ARRSH_URL, data=data)
     logger.info(f"Checkin: {username} Checkin...")
     soup = BeautifulSoup(post.content, "lxml")
     return (
@@ -91,7 +92,12 @@ def checkin(s, username):
 @run_async
 def checkin_queue(context):
     job = context.job
-    username, password, chat = job.context.get("username"), job.context.get("password"), job.context.get("chat")
+    username, password, region, chat = (
+        job.context.get("username"),
+        job.context.get("password"),
+        job.context.get("region"),
+        job.context.get("chat"),
+    )
     s = requests.Session()
     s.headers.update(
         {
@@ -112,7 +118,7 @@ def checkin_queue(context):
             logger.warning(append_text)
             message = message.edit_text(f"{message.text}\n{append_text}")
     for i in range(retry_count):
-        result = checkin(s, username)
+        result = checkin(s, username, region)
         if result:
             append_text = f"Checkin: {username} Successful!"
             logger.info(append_text)
@@ -130,7 +136,7 @@ def start(update, context):
     chat = message.forward_from_chat if message.forward_from_chat else message.chat
     jobs = [t.name for t in context.job_queue.jobs()]
     message.reply_markdown(
-        f"Usage:\n/add <username> <password>\n/del <username>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
+        f"Usage:\n/add <username> <password> \[region-num\]\nregin-num: \n1 - 上海\n2 - 湖北\n3 - 其他中国地区\n5 - 国外\n/del <username>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
     )
     logger.info(f"Start command: Current Jobs: {jobs}")
 
@@ -141,9 +147,12 @@ def add(update, context):
     chat = message.chat
     data = message.text.split(" ")
     if len(data) < 3:
-        message.reply_text("Usage:\n/add <username> <password>")
+        message.reply_text(
+            "Usage:\n/add <username> <password> [region-num]\nregin-num: \n1 - 上海\n2 - 湖北\n3 - 其他中国地区\n5 - 国外\n"
+        )
         return
     username, password = data[1], data[2]
+    region = 1 if len(data) == 3 else data[3]
     for job in context.job_queue.get_jobs_by_name(username):
         job.schedule_removal()
     jobs = [t.name for t in context.job_queue.jobs()]
@@ -153,13 +162,20 @@ def add(update, context):
         context={
             "username": username,
             "password": password,
+            "region": region,
             "chat": chat.id,
         },
     )
     context.job_queue.run_daily(
         checkin_queue,
-        datetime.time(0, 2 + len(jobs), 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
-        context={"username": username, "password": password,"chat": chat.id},
+        datetime.time(
+            0,
+            min(2 + len(jobs), 59),
+            0,
+            0,
+            datetime.timezone(datetime.timedelta(hours=8)),
+        ),
+        context={"username": username, "password": password, "chat": chat.id},
         name=username,
     )
     message.reply_text(
@@ -220,7 +236,9 @@ if __name__ == "__main__":
         config = load_json()
     TOKEN, CHAT = config.get("TOKEN"), config.get("CHAT")
     logger.info(f"Bot: Starting & Sending to {CHAT}")
-    updater = Updater(TOKEN, use_context=True, request_kwargs=config.get("REQUEST_KWARGS"))
+    updater = Updater(
+        TOKEN, use_context=True, request_kwargs=config.get("REQUEST_KWARGS")
+    )
     updater.job_queue.run_daily(
         checkin_queue,
         datetime.time(0, 2, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
@@ -228,6 +246,7 @@ if __name__ == "__main__":
             "username": config.get("USERNAME"),
             "password": config.get("PASSWORD"),
             "chat": config.get("CHAT"),
+            "region": 1,
         },
         name=config.get("USERNAME"),
     )
