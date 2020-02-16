@@ -91,7 +91,7 @@ def checkin(s, username):
 @run_async
 def checkin_queue(context):
     job = context.job
-    username, password = job.context.get("username"), job.context.get("password")
+    username, password, chat = job.context.get("username"), job.context.get("password"), job.context.get("chat")
     s = requests.Session()
     s.headers.update(
         {
@@ -99,7 +99,7 @@ def checkin_queue(context):
         }
     )
     retry_count = 5
-    message = context.bot.send_message(CHAT, f"Job: Running for {username}")
+    message = context.bot.send_message(chat, f"Job: Running for {username}")
     for i in range(retry_count):
         result = login(s, username, password)
         if result:
@@ -128,19 +128,68 @@ def checkin_queue(context):
 def start(update, context):
     message = update.message
     chat = message.forward_from_chat if message.forward_from_chat else message.chat
+    jobs = [t.name for t in context.job_queue.jobs()]
+    message.reply_markdown(
+        f"Usage:\n/add <username> <password>\n/del <username>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
+    )
+    logger.info(f"Start command: Current Jobs: {jobs}")
+
+
+@run_async
+def add(update, context):
+    message = update.message
+    chat = message.chat
+    data = message.text.split(" ")
+    if len(data) < 3:
+        message.reply_text("Usage:\n/add <username> <password>")
+        return
+    username, password = data[1], data[2]
+    for job in context.job_queue.get_jobs_by_name(username):
+        job.schedule_removal()
+    jobs = [t.name for t in context.job_queue.jobs()]
     context.job_queue.run_once(
         checkin_queue,
         1,
         context={
-            "username": config.get("USERNAME"),
-            "password": config.get("PASSWORD"),
+            "username": username,
+            "password": password,
+            "chat": chat.id,
         },
     )
-    jobs = [t.name for t in context.job_queue.jobs()]
-    message.reply_markdown(
-        f"CHAT ID: `{chat.id}`\nSending to {config.get('CHAT')}\nCurrent Jobs: {jobs}"
+    context.job_queue.run_daily(
+        checkin_queue,
+        datetime.time(0, 2 + len(jobs), 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
+        context={"username": username, "password": password,"chat": chat.id},
+        name=username,
     )
-    logger.info(f"Start command: Current Jobs: {jobs}")
+    message.reply_text(
+        f"Added successfully!\nusername: {username}\npassword: {password}\nCurrent Jobs: {jobs}"
+    )
+    logger.info(f"Added Jobs: {username}, Current Jobs: {jobs}")
+
+
+@run_async
+def delete(update, context):
+    message = update.message
+    chat = message.chat
+    data = message.text.split(" ")
+    if len(data) < 2:
+        message.reply_text("Usage:\n/del <username>")
+        return
+    username = data[1]
+    deleted_flag = False
+    jobs = [t.name for t in context.job_queue.jobs()]
+    for job in context.job_queue.get_jobs_by_name(username):
+        if job.context.get("chat") == chat.id:
+            deleted_flag = True
+            job.schedule_removal()
+            logger.info(f"Deleted Jobs: {username}, Current Jobs: {jobs}")
+    if deleted_flag:
+        message.reply_text(
+            f"Deleted successfully!\nusername: {username}\nCurrent Jobs: {jobs}"
+        )
+    else:
+        message.reply_text("You cannot delete it.")
 
 
 @run_async
@@ -174,14 +223,17 @@ if __name__ == "__main__":
     updater = Updater(TOKEN, use_context=True, request_kwargs=config.get("REQUEST_KWARGS"))
     updater.job_queue.run_daily(
         checkin_queue,
-        datetime.time(0, 5, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
+        datetime.time(0, 2, 0, 0, datetime.timezone(datetime.timedelta(hours=8))),
         context={
             "username": config.get("USERNAME"),
             "password": config.get("PASSWORD"),
+            "chat": config.get("CHAT"),
         },
         name=config.get("USERNAME"),
     )
     updater.dispatcher.add_handler(CommandHandler("start", start))
+    updater.dispatcher.add_handler(CommandHandler("add", add))
+    updater.dispatcher.add_handler(CommandHandler("del", delete))
     updater.dispatcher.add_error_handler(error)
     updater.start_polling()
     updater.idle()
