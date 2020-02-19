@@ -18,7 +18,6 @@ from utils.utils import LabeltoStr, device, logger
 DK_URL = "https://dk.shmtu.edu.cn/"
 CAPTCHA_URL = "https://cas.shmtu.edu.cn/cas/captcha"
 CHECKIN_URL = DK_URL + "checkin"
-ARRSH_URL = DK_URL + "arrsh"
 
 
 model = ResNet(ResidualBlock)
@@ -69,17 +68,6 @@ def checkin(s, username, region):
         "status": 0,
     }
     post = s.post(CHECKIN_URL, data=data)
-    if region == 1:
-        data = {
-            "xgh": username,
-            "alwaysinsh": 1,
-            "fromaddr": "",
-            "fromtime": "",
-            "totime": "",
-            "jtgj": "",
-            "status": 0,
-        }
-        post = s.post(ARRSH_URL, data=data)
     logger.info(f"Checkin: {username} Checkin...")
     soup = BeautifulSoup(post.content, "lxml")
     return (
@@ -136,7 +124,7 @@ def start(update, context):
     chat = message.forward_from_chat if message.forward_from_chat else message.chat
     jobs = [t.name for t in context.job_queue.jobs()]
     message.reply_markdown(
-        f"Usage:\n/add <username> <password> \[region-num\]\nregin-num: \n1 - 上海\n2 - 湖北\n3 - 其他中国地区\n5 - 国外\n/del <username>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
+        f"Usage:\n/add <username> <password> \[region-num]\nregin-num: \n1 - 上海\n2 - 湖北\n3 - 其他中国地区\n5 - 国外\n/del <username>\nCHAT ID: `{chat.id}`\nCurrent Jobs: {jobs}"
     )
     logger.info(f"Start command: Current Jobs: {jobs}")
 
@@ -170,12 +158,17 @@ def add(update, context):
         checkin_queue,
         datetime.time(
             0,
-            min(2 + len(jobs), 59),
+            min(3 + len(jobs), 59),
             0,
             0,
             datetime.timezone(datetime.timedelta(hours=8)),
         ),
-        context={"username": username, "password": password, "chat": chat.id},
+        context={
+            "username": username,
+            "password": password,
+            "region": region,
+            "chat": chat.id,
+        },
         name=username,
     )
     message.reply_text(
@@ -246,7 +239,7 @@ if __name__ == "__main__":
             "username": config.get("USERNAME"),
             "password": config.get("PASSWORD"),
             "chat": config.get("CHAT"),
-            "region": 1,
+            "region": config.get("REGION", 1),
         },
         name=config.get("USERNAME"),
     )
