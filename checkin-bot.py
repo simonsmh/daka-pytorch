@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 import datetime
+import json
 import os
 import sys
-import json
+from random import SystemRandom
+
 import numpy as np
 import requests
 import torch
 from bs4 import BeautifulSoup
 from PIL import Image
+from telegram.ext import CommandHandler, Updater
+from telegram.ext.dispatcher import run_async
 
 from dataset import transform
 from model import ResidualBlock, ResNet
-from telegram.ext import CommandHandler, Updater
-from telegram.ext.dispatcher import run_async
 from utils.utils import LabeltoStr, device, logger
 
 DK_URL = "https://dk.shmtu.edu.cn/"
@@ -67,9 +69,10 @@ def checkin(s, username, region):
         "rylx": 4,
         "status": 0,
     }
-    post = s.post(CHECKIN_URL, data=data)
+    s.post(CHECKIN_URL, data=data)
     logger.info(f"Checkin: {username} Checkin...")
-    soup = BeautifulSoup(post.content, "lxml")
+    home = s.get(DK_URL)
+    soup = BeautifulSoup(home.content, "lxml")
     return (
         True
         if "success" in str(soup.find("div", attrs={"class": "form-group"}))
@@ -93,11 +96,13 @@ def checkin_queue(context):
         }
     )
     retry_count = 5
-    message = context.bot.send_message(chat, f"Job: Running for {username}")
+    message = context.bot.send_message(
+        chat, f"Job: Running for {username}", disable_notification=True
+    )
     for i in range(retry_count):
         result = login(s, username, password)
         if result:
-            append_text = f"Login: {username} Successful!"
+            append_text = f"Login: {username} Success!"
             logger.info(append_text)
             message = message.edit_text(f"{message.text}\n{append_text}")
             break
@@ -108,14 +113,25 @@ def checkin_queue(context):
     for i in range(retry_count):
         result = checkin(s, username, region)
         if result:
-            append_text = f"Checkin: {username} Successful!"
+            append_text = f"Checkin: {username} Success!"
             logger.info(append_text)
             message = message.edit_text(f"{message.text}\n{append_text}")
-            break
+            return
         else:
             append_text = f"Checkin: {username} Fail {i}"
             logger.warning(append_text)
             message = message.edit_text(f"{message.text}\n{append_text}")
+    message.reply_text("Job failed! Planning to run in next hour.")
+    context.job_queue.run_once(
+        checkin_queue,
+        SystemRandom().randint(1800, 3600),
+        context={
+            "username": username,
+            "password": password,
+            "region": region,
+            "chat": chat,
+        },
+    )
 
 
 @run_async
@@ -140,27 +156,18 @@ def add(update, context):
         )
         return
     username, password = data[1], data[2]
-    region = 1 if len(data) == 3 else data[3]
+    region = 1 if len(data) <= 3 else data[3]
+    chat_id = chat.id if len(data) <= 4 else data[4]
     for job in context.job_queue.get_jobs_by_name(username):
         job.schedule_removal()
     jobs = [t.name for t in context.job_queue.jobs()]
-    context.job_queue.run_once(
-        checkin_queue,
-        1,
-        context={
-            "username": username,
-            "password": password,
-            "region": region,
-            "chat": chat.id,
-        },
-    )
     context.job_queue.run_daily(
         checkin_queue,
         datetime.time(
             0,
             min(3 + len(jobs), 59),
-            0,
-            0,
+            SystemRandom().randrange(60),
+            SystemRandom().randrange(1000000),
             datetime.timezone(datetime.timedelta(hours=8)),
         ),
         context={
@@ -170,6 +177,17 @@ def add(update, context):
             "chat": chat.id,
         },
         name=username,
+    )
+    jobs.append(username)
+    context.job_queue.run_once(
+        checkin_queue,
+        1,
+        context={
+            "username": username,
+            "password": password,
+            "region": region,
+            "chat": chat_id,
+        },
     )
     message.reply_text(
         f"Added successfully!\nusername: {username}\npassword: {password}\nCurrent Jobs: {jobs}"
