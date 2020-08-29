@@ -96,34 +96,26 @@ def checkin_queue(context):
         }
     )
     retry_count = 5
-    message = context.bot.send_message(
-        chat, f"任务: 正在为 {username} 运行...", disable_notification=True
-    )
     for i in range(retry_count):
         try:
             if login(s, username, password):
-                append_text = f"登录: {username} 成功!"
                 logger.info(f"Login: {username} Success!")
-                message = message.edit_text(f"{message.text}\n{append_text}")
                 break
         except:
             continue
-        append_text = f"登录: {username} 重试次数 {i}"
         logger.warning(f"Login: {username} Fail {i}")
-        message = message.edit_text(f"{message.text}\n{append_text}")
     for i in range(retry_count):
         try:
             if checkin(s, username, region):
-                append_text = f"打卡: {username} 成功!"
                 logger.info(f"Checkin: {username} Success!")
-                message = message.edit_text(f"{message.text}\n{append_text}")
+                context.bot.send_message(
+                    chat, f"任务: {username} 执行成功！", disable_notification=True
+                )
                 return
         except:
             continue
-        append_text = f"打卡: {username} 重试次数 {i}"
         logger.warning(f"Checkin: {username} Fail {i}")
-        message = message.edit_text(f"{message.text}\n{append_text}")
-    message.reply_text("任务执行失败! 预计下个小时将继续执行。")
+    context.bot.send_message(chat, f"任务: {username} 执行失败！预计下个小时将继续执行。")
     context.job_queue.run_once(
         checkin_queue,
         SystemRandom().randint(1800, 3600),
