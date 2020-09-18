@@ -64,6 +64,7 @@ async def user(username, password, region, retry_count=5):
             "region": region,
             "rylx": 4,
             "status": 0,
+            "sflx": 1,
         }
         await client.post(CHECKIN_URL, data=data)
         logger.info(f"Checkin: {username} Checkin...")
